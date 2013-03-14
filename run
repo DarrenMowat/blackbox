@@ -1,0 +1,2 @@
+#! /bin/bash
+dist/build/blackbox/blackbox -f /Users/darren/proj/sample/F1.hs -m /Users/darren/proj/sample/F1.hs

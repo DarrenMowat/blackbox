@@ -1,0 +1,45 @@
+
+name:                  blackbox
+version:               0.1.0.0
+synopsis:              A wrapper around GHCI which allows Text editors to do useful things
+description:
+                       Blackbox provides an api for text editors to query useful things about
+                       haskell programs....
+homepage:              https://github.com/DarrenMowat/blackbox
+license:               PublicDomain
+license-file:          LICENCE
+data-files:            annotate.sh
+author:                Darren Mowat
+maintainer:            darren.mowat@strath.ac.uk
+category:              Development
+build-type:            Simple
+cabal-version:         >=1.8
+
+executable blackbox
+    main-is: Main.hs          
+
+    build-depends:     base >=4 && < 5,
+                       filepath >= 1 && < 2,
+                       directory ==1.2.*,
+                       parsec ==3.1.*,
+                       process ==1.1.*,
+                       split > 0,
+                       MonadRandom ==0.1.8,
+                       mtl >=2 && < 3,
+                       her-lexer ==0.1.1
+
+    hs-source-dirs:    src
+
+    other-modules:     Blackbox
+                       FileUtils
+                       GHCIProc
+                       ListUtils
+                       Mirage
+                       Function.PatternSplitter
+                       Function.Scope
+                       TokenUtils
+                       Type
+
+source-repository head
+  type:     git
+  location: https://github.com/DarrenMowat/blackbox.git
