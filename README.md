@@ -1,12 +1,12 @@
 ![Blackbox](https://raw.github.com/DarrenMowat/blackbox/master/web/Blackbox.png)
 
-Blackbox is a Haskell source code transformer which allows you to find out interseting things about your program. The main aim of Blackbox is to act as a backend for text editor plugins which helps to expose the type system of Haskell to the user.
+Blackbox is a Haskell source code transformer which allows you to find out interesting things about your program. The main aim of Blackbox is to act as a backend for text editor plugins which helps to expose the type system of Haskell to the user.
 
 Current features include: 
 * Splitting variables into patterns ([a] -> [] | (x:xs))
 * Inserting missing type lines
 
-Blackbox works by parsing a haskell file which has special comments in it which tell Blackbox what to do. For example look at the following fucntion
+Blackbox works by parsing a Haskell file which has special comments in it which tell Blackbox what to do. For example look at the following function
 
 			fn :: [a] -> [a]
 			fn xs = undefined
