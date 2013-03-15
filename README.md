@@ -10,12 +10,22 @@ Blackbox works by parsing a haskell file which has special comments in it which 
 
 			fn :: [a] -> [a]
 			fn xs = undefined
+			
 Blackbox can be asked to split the xs into all possible combinations of the type by inserting the comment 
-            {-SPLIT-}
+
+			{-SPLIT-}
+			
 before the variable to be split
+
 			fn :: [a] -> [a]
 			fn {-SPLIT-} xs = undefined
-You can then pass the file over to Blackbox and it will return a modified file, over STDOUT, with all commands satisfied.
+			
+You can then pass the file over to Blackbox and it will return a modified file, over STDOUT, with all commands satisfied. The above file would become
+
+			fn :: [a] -> [a]
+			fn [] = undefined
+			fn (x:xs) = undefined
+		 
 
 This project has been undertaken as part of my final year degree project.
 
