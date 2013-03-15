@@ -1,6 +1,8 @@
 Blackbox
 =======
 
+![Blackbox](https://raw.github.com/DarrenMowat/blackbox/master/Blackbox.png)
+
 Blackbox 
 
 This is part of my final year project of my CS degree 
