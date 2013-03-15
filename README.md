@@ -29,6 +29,11 @@ You can then pass the file over to Blackbox and it will return a modified file, 
 
 This project has been undertaken as part of my final year degree project.
 
+Available Plugins
+===========
+
+![Blackbox bindings for Sublime Text 2](https://github.com/DarrenMowat/blackbox-sb2)
+
 Installing from Cabal
 =============
 
