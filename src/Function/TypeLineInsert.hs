@@ -1,8 +1,8 @@
 module Function.TypeLineInsert where
 
 -- External Imports
-import Language.Haskell.Her.HaLay 
 import Debug.Trace (trace)
+import Language.Haskell.Her.HaLay
 
 -- Project Imports
 import GHCIProc 
@@ -14,7 +14,7 @@ tlIdentifier :: Tok
 tlIdentifier = Com "{-TYPELINE-}"
 
 insertTypeLines :: FilePath -> [[Tok]] -> IO [[Tok]]
-insertTypeLines file tokens = do mapInsert file (findLinesWithToken tlIdentifier tokens) tokens
+insertTypeLines file tokens = mapInsert file (findLinesWithToken tlIdentifier tokens) tokens
 
 mapInsert :: FilePath -> [[Tok]] -> [[Tok]] -> IO [[Tok]]
 mapInsert file [] tokens     = return tokens
@@ -61,6 +61,5 @@ getFunctionTypeFromGHCI file name = do
     resp <- runCommandList file [cmd]
     case lookup cmd resp of 
         Nothing   -> return Nothing 
-        Just resp -> do 
-            return $ Just (readGhciOutput resp)
+        Just resp -> return $ Just (readGhciOutput resp)
 

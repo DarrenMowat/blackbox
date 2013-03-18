@@ -5,17 +5,32 @@ import Debug.Trace
 
 tokeniseFile :: FilePath -> IO [[Tok]]
 tokeniseFile file = do 
-	contents <- readFile file
-	return $ tokeniseString contents
+  contents <- readFile file
+  let processed = unlines $ map appendSpc $ lines contents ++ ["blackboxEOFKeeper = 0"]
+  return $ ready ".hers" processed
 
 tokeniseString :: String -> [[Tok]] 
 tokeniseString = ready ".hers"
 
+appendSpc :: String -> String 
+appendSpc s = s ++ " "
+
+unappendSpc :: String -> String 
+unappendSpc [] = [] 
+unappendSpc (' ' : []) = []
+unappendSpc (s:ss) = s : unappendSpc ss
+
+untokeniseFile :: [[Tok]] -> String 
+untokeniseFile toks = unlines $ init $ map unappendSpc (lines (tokssOut toks))
+
 untokeniseArr :: [[Tok]] -> String 
 untokeniseArr = tokssOut
 
+untokeniseLine :: [Tok] -> String
+untokeniseLine = toksOut
+
 errOut :: String -> Tok -> ([[Tok]], [[Tok]], [[Tok]]) -> IO [[Tok]] 
-errOut s t (str, fn, end) = return (str ++ (replaceFirstTokenOcc t (mkComment s) fn) ++ end) 
+errOut s t (str, fn, end) = return (str ++ replaceFirstTokenOcc t (mkComment s) fn ++ end)
     where 
       mkComment s = Com $ "{- " ++ s ++ " -}"
 
@@ -57,43 +72,37 @@ extractFunction name tokens = (bf tokens, fn tokens, af tokens)
 
 deleteFirstTokenOcc :: Tok -> [[Tok]] -> [[Tok]]
 deleteFirstTokenOcc tok []     = []
-deleteFirstTokenOcc tok (t:ts) = case elemToken tok t of 
-    False -> t : deleteFirstTokenOcc tok ts
-    True  -> delCom t : ts
+deleteFirstTokenOcc tok (t:ts) = if elemToken tok t then delCom t : ts else
+    t : deleteFirstTokenOcc tok ts
     where 
       delCom [] = [] 
-      delCom ((L l ls) : ts) = case elemTokenArr tok ls of 
-        True  -> (L l (deleteFirstTokenOcc tok ls)) : delCom ts
-        False -> (L l ls) : delCom ts 
-      delCom ((B b rs):ts)    = case elemToken tok rs of 
-        True  -> (B b (delCom rs)) : ts 
-        False -> (B b rs) : delCom ts 
-      delCom ((T t rs):ts)    = case elemToken tok rs of 
-        True  -> (T t (delCom rs)) : ts
-        False -> (T t rs) : delCom ts
-      delCom (t : ts) = case t == tok of 
-        True  -> trace (show t) ts
-        False -> trace (show t) (t : delCom ts)
+      delCom (L l ls : ts) = if elemTokenArr tok ls then
+        L l (deleteFirstTokenOcc tok ls) : delCom ts else
+        L l ls : delCom ts
+      delCom (B b rs : ts)    = if elemToken tok rs then 
+        B b (delCom rs) : ts else
+        B b rs : delCom ts 
+      delCom (T t rs : ts)    = if elemToken tok rs then 
+        T t (delCom rs) : ts else
+        T t rs : delCom ts
+      delCom (t : ts) = if t == tok then ts else t : delCom ts
 
 replaceFirstTokenOcc :: Tok -> Tok -> [[Tok]] -> [[Tok]]
 replaceFirstTokenOcc tok rep []     = []
-replaceFirstTokenOcc tok rep (t:ts) = case elemToken tok t of 
-    False -> t : replaceFirstTokenOcc tok rep ts
-    True  -> delCom t : ts
+replaceFirstTokenOcc tok rep (t:ts) = if elemToken tok t then delCom t : ts else
+    t : replaceFirstTokenOcc tok rep ts
     where 
       delCom [] = [] 
-      delCom ((L l ls) : ts) = case elemTokenArr tok ls of 
-        True  -> (L l (replaceFirstTokenOcc tok rep ls)) : delCom ts
-        False -> (L l ls) : delCom ts 
-      delCom ((B b rs):ts)    = case elemToken tok rs of 
-        True  -> (B b (delCom rs)) : ts 
-        False -> (B b rs) : delCom ts 
-      delCom ((T t rs):ts)    = case elemToken tok rs of 
-        True  -> (T t (delCom rs)) : ts
-        False -> (T t rs) : delCom ts
-      delCom (t : ts) = case t == tok of 
-        True  -> rep : ts
-        False -> t : delCom ts
+      delCom (L l ls : ts) = if elemTokenArr tok ls then
+        L l (replaceFirstTokenOcc tok rep ls) : delCom ts else
+        L l ls : delCom ts
+      delCom (B b rs : ts)    = if elemToken tok rs then 
+        B b (delCom rs) : ts else
+        B b rs : delCom ts 
+      delCom (T t rs : ts)    = if elemToken tok rs then 
+        T t (delCom rs) : ts else
+        T t rs : delCom ts
+      delCom (t : ts) = if t == tok then rep : ts else t : delCom ts
 
 
 {-|

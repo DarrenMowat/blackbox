@@ -12,15 +12,15 @@ import System.IO
 import Blackbox
 
 {- 
-	This file parses the arguments passed to the executable
-	and passes control over to the blackbox module if the user
-	has supplied valid arguments
-	Else it will die.
+  This file parses the arguments passed to the executable
+  and passes control over to the blackbox module if the user
+  has supplied valid arguments
+  Else it will die.
 
-	TODO: Print usage on incorerect paramaters
+  TODO: Print usage on incorerect paramaters
 
-	Some code from http://leiffrenzel.de/papers/commandline-options-in-haskell.html
-	Heavily modified though
+  Some code from http://leiffrenzel.de/papers/commandline-options-in-haskell.html
+  Heavily modified though
 -}
 
 
@@ -32,13 +32,14 @@ main = do
     (_,     nonOpts, [])     -> error $ "Invalid arguments: " ++ unwords nonOpts
     (_,     _,       msgs)   -> error $ concat msgs ++ usageInfo header options
 
-data Flag = Version | Infile String | Markup String deriving (Show, Eq)
+data Flag = Version | Infile String | Markup String | GHCI String deriving (Show, Eq)
 
 options :: [OptDescr Flag]
 options = [
     Option "v" ["version"] (NoArg Version)         "show version number",
     Option "f" ["file"]    (ReqArg Infile "FILE")  "file to be processed, this won't be edited",
-    Option "m" ["markup"]  (ReqArg Markup "FILE")  "marked up copy of the file to be processed, this may be edited"
+    Option "m" ["markup"]  (ReqArg Markup "FILE")  "marked up copy of the file to be processed, this may be edited",
+    Option "g" ["ghci"]    (ReqArg GHCI "FILE")    "path to ghci"  
   ]
 
 showVersion = do
@@ -46,12 +47,12 @@ showVersion = do
     exitSuccess
 
 die = do 
-	putStrLn header
-	exitFailure
+  putStrLn header
+  exitFailure
  
 header = "Usage: blackbox [OPTION...]"
 
-processFlags :: [Flag] -> IO()
+processFlags :: [Flag] -> IO ()
 processFlags f = do 
     let ver = lookupFlag "Version" f
     let inf = lookupFlag "Infile" f
@@ -59,14 +60,22 @@ processFlags f = do
     case lookupFlag "Version" f of
         Just v -> showVersion
         Nothing -> case (inf, mar) of 
-       	               (Just (Infile ifile), Just (Markup mfile)) -> runBlackbox ifile mfile
-       	               (_,_) -> die
+          (Just (Infile ifile), Just (Markup mfile)) -> do 
+            resp <- runBlackbox ifile mfile
+            case resp of 
+               Left err   -> do 
+                   hPutStrLn stderr err
+                   exitFailure 
+               Right file -> do
+                   putStrLn file
+                   exitSuccess
+          (_,_) -> die
 
 lookupFlag :: String -> [Flag] -> Maybe Flag
 lookupFlag _ [] = Nothing
 lookupFlag "Version" (Version : fs)  = Just Version
 lookupFlag "Infile"  (Infile f : fs) = Just (Infile f)
 lookupFlag "Markup"  (Markup f : fs) = Just (Markup f)
+lookupFlag "Ghci"  (GHCI f : fs) = Just (GHCI f)
 lookupFlag x (f:fs) = lookupFlag x fs
-
 

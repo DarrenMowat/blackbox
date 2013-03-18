@@ -25,8 +25,7 @@ executable blackbox
                        process ==1.1.*,
                        split > 0,
                        MonadRandom ==0.1.8,
-                       mtl >=2 && < 3,
-                       her-lexer ==0.1.1
+                       mtl >=2 && < 3
 
     hs-source-dirs:    src
 
@@ -35,10 +34,15 @@ executable blackbox
                        GHCIProc
                        ListUtils
                        Mirage
-                       Function.PatternSplitter
-                       Function.Scope
                        TokenUtils
                        Type
+                       Function.PatternSplitter
+                       Function.Scope
+                       Function.TypeFooler
+                       Function.TypeLineInsert
+                       Language.Haskell.Her.FromClutterToLines
+                       Language.Haskell.Her.HaLay
+                       Language.Haskell.Her.Parsley
 
 source-repository head
   type:     git

@@ -4,6 +4,7 @@ module GHCIProc (GHCIResponse (..), GHCICommand (..), HLine (..), runCommandList
 import Data.List (intercalate, nub)
 import System.Process (readProcess)
 import Text.ParserCombinators.Parsec (parse, manyTill, anyChar, try, string, manyTill)
+import System.IO
 
 import Paths_blackbox (getDataFileName)
 import FileUtils (splitPath)
@@ -43,23 +44,24 @@ wrapStandardCommands file cmds = [PROMPT "", CD filePath, LOAD fileName] ++ cmds
 wrapCommandList :: [(Int, GHCICommand)] -> [GHCICommand]
 wrapCommandList []                 = []
 wrapCommandList ((id, cmd):cmds) = startCommand cmd : cmd : endCommand cmd : wrapCommandList cmds 
-								      where
-									    startCommand c = ECHO (intercalate "" ["{-S", show id, "-}"])
-									    endCommand c = ECHO (intercalate "" ["{-E", show id, "-}"])
+    where
+      startCommand c = ECHO (intercalate "" ["{-S", show id, "-}"])
+      endCommand c = ECHO (intercalate "" ["{-E", show id, "-}"])
 
 buildAL :: Int -> [GHCICommand] -> [(Int, GHCICommand)]
 buildAL _ []     = []
 buildAL n (c:cs) = (n, c) : buildAL (n + 1) cs
 
 runCommandList :: FilePath -> [GHCICommand] -> IO [GHCIResponse] 
-runCommandList f cs = do 
-	                     let al = buildAL 1 $ wrapStandardCommands f (nub cs)
-	                     let cmds = wrapCommandList al
-	                     let ins = intercalate "\n" (map show cmds)
-	                     bash <- getDataFileName "annotate.sh"
-	                     out <- readProcess bash ["ghci"] ins
-	                     let resp = splitResponses al out 
-	                     return resp
+runCommandList f cs = do
+	let al = buildAL 1 $ wrapStandardCommands f (nub cs)
+	let cmds = wrapCommandList al
+	let ins = intercalate "\n" (map show cmds)
+	bash <- getDataFileName "annotate.sh"
+	out <- readProcess bash ["ghci"] ins
+	let resp = splitResponses al out 
+	-- hPutStrLn stderr (show resp)
+	return resp
 
 splitResponses :: [(Int, GHCICommand)] -> String -> [GHCIResponse] 
 splitResponses [] _ = [] 
@@ -115,7 +117,7 @@ lineStartsWith str a = case parse (string a) ("lineStartsWith:" ++ show a) str o
 -}
 readGhciOutput :: [HLine] -> String 
 readGhciOutput [] = [] 
-readGhciOutput (Out s : ss) = s ++ readGhciOutput ss  
+readGhciOutput (Out s : ss) = s ++ "\n" ++ readGhciOutput ss  
 readGhciOutput (_ : ss) = readGhciOutput ss  
 
 {-|
@@ -124,7 +126,7 @@ readGhciOutput (_ : ss) = readGhciOutput ss
 -}
 readGhciError :: [HLine] -> String 
 readGhciError [] = [] 
-readGhciError (Err s : ss) = s ++ readGhciError ss  
+readGhciError (Err s : ss) = s ++ "\n" ++ readGhciError ss  
 readGhciError (_ : ss) = readGhciError ss  
 
 

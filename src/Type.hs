@@ -1,77 +1,86 @@
-module Type where 
+module Type  where 
+
 
 import Language.Haskell.Her.HaLay
 import ListUtils
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, isJust)
 import Data.List.Split (splitOn)
-import Data.List (intersperse)
-
+import Data.List (intersperse, isPrefixOf)
+import TokenUtils
+import Data.Char
 
 import Debug.Trace (trace)
 
 
 type Identifier = String
 type Layout = String
-data Paramater =  TV String -- Type Variable (a,b,cats)
-                | RV String -- Rigid Type Variable (Int, Char, Cat)
-                | CV String -- Complex Type Variable ((Int, String), [User])
-                deriving (Show, Eq)
+type Paramater = (String, Maybe String)
 
--- Types allow for us to 
 type Type = (Identifier, Layout, [Paramater])
 
--- Data is a one to many mapping of a given type
--- To all the valid types within it
--- data Bool = True | False 
---      => (("Bool","Bool",[]),[("True","True",[]), ("False","False",[])])
--- data [] a = [] | a : [a] 
---      => (("[]","[] ?",[TV "a"]), [("[]","[]",[]), (":","? : ?",[TV "a", CV "[a]"])])
--- data Either a b = Left a | Right b 
---      => (("Either", "Either ? ?", [TV "a", TV "b"]), [("Left", "Left ?", [TV "a"]), ("Right", "Right ?", [TV "b"])])
 type Data = (Type, [Type])
 
-{-|
-  Sometimes when GHCI returns a type it will be in the format
-    [Char] | [Int] | (Int, String) | Tree Int
-  However we can't process types like this. This fucntion unwraps 
-  the type into a more manageable form. For example 
-    ("[]", "[?]",[RV "Char"]) |  ... | ("Tree", "Tree ?", [RV "Int"])
--}
 unwrapType :: String -> Maybe Type
 unwrapType [] = Nothing
 unwrapType str = unwrapTypeToks $ concat $ ready "" str
 
 unwrapTypeToks :: [Tok] -> Maybe Type
-unwrapTypeToks [] = Nothing
-unwrapTypeToks toks = {- trace ("unwrapTypeToks: " ++ show toks) -} (go $ trimSpaceToken $ seekToDef toks)
+unwrapTypeToks ts = if isInfixCons stripped then toTypeInfix stripped else toType stripped
     where 
-        go [] = Nothing
-        go (Uid i : ts) = Just (i, i ++ concat (replicate (length ps) " ?"), ps)
-            where ps = pParams ts
-        -- Lists are hard to parse, we'll cheat a wee bit
-        go (B Sqr [] : tts) = Just ("[]", "[]", [])
-        go (B Sqr ts : tts) = Just ("[]", "[?]", (pParams ts ++ pParams tts))
-        -- Mostly for parsing tuples
-        go (B Rnd ts : tts) = trace (show ts) (Just ((filter (/='?') us), us, (pParams ts ++ pParams tts)))
-            where us = '(' : pTuple ts ++ ")"
-        go _ = Nothing
-        pParams [] = [] 
-        pParams (Spc _ : ts) = pParams ts 
-        pParams (Sym _ : ts) = pParams ts 
-        pParams (Uid i : ts) = RV i : pParams ts 
-        pParams (Lid i : ts) = TV i : pParams ts 
-        pParams (s : ts) = CV (tokOut s) : pParams ts 
-        pTuple [] = [] 
-        pTuple (Spc s : ts) = pTuple ts 
-        pTuple (Sym s : ts) = s ++ pTuple ts 
-        pTuple (Uid i : ts) = "?" ++ pTuple ts 
-        pTuple (Lid i : ts) = "?" ++ pTuple ts 
-        pTuple (s : ts) = "?" ++ pTuple ts
-        seekToDef [] = []
-        seekToDef (KW _ : ts) = seekToDef ts
-        seekToDef (T Ty ts : _) = ts 
-        seekToDef (Spc _ : ts) = seekToDef ts
-        seekToDef ts = ts
+    	stripped = trimSpaceToken ts
+        isInfixCons []           = False
+        isInfixCons (Sym t : ts) = True
+        isInfixCons (t:ts)       = isInfixCons ts
+
+toType :: [Tok] -> Maybe Type 
+toType [] = Nothing
+toType ts = trace (show toks) (Just (iden toks, concat (layout toks), params toks))
+    where 
+    	toks = trimSpaceToken ts
+        iden (Uid idn : ts) = idn
+        iden ts = filter (not . isSpace) $ concat $ filter (/="{?}") $ layout (trimSpaceToken ts)
+        layout []     = []
+        layout (Uid cName : ts) = cName : toLayout ts
+        layout ts = toLayout ts
+    	toLayout [] = []
+    	toLayout (B Sqr ts : tss) = ["["] ++ toLayout ts ++ ["]"] ++ toLayout tss
+    	toLayout (B Rnd ts : tss) = ["("] ++ toLayout ts ++ [")"] ++ toLayout tss
+    	toLayout (T Ty ts : tss)   = toLayout ts ++ toLayout tss
+    	toLayout (Lid a : ts) = "{?}" : toLayout ts
+    	toLayout (Uid a : ts) = "{?}" : toLayout (takeLid ts) -- Sometimes UId's are followed by type arguments ;)
+    	toLayout (Com _ : ts) = toLayout ts
+    	toLayout (NL _ : ts) = toLayout ts
+        toLayout (KW "deriving" : _) = []
+        toLayout (KW "instance" : _) = []
+        toLayout (t:ts) = tokOut t : toLayout ts
+        takeLid [] = []
+        takeLid (Lid _ : ts) = takeLid ts
+        takeLid (Spc _ : ts) = takeLid ts
+        takeLid ts = ts
+        params (Uid _ : ts) = toParams ts
+        params ts = toParams ts
+    	toParams [] = []
+        toParams (KW "deriving" : _) = []
+        toParams (KW "instance" : _) = []
+        toParams (Com _ : ts) = toParams ts
+    	toParams (B _ ts : tss) = toParams ts ++ toParams tss
+    	toParams (Lid a : ts) = (a, Nothing) : toParams ts
+    	toParams (Uid a : ts) = (a, Nothing) : toParams ts
+    	toParams (T Ty ts : tss)   = toParams ts ++ toParams tss
+        toParams (t:ts) = toParams ts
+
+toTypeInfix :: [Tok] -> Maybe Type 
+toTypeInfix [] = Nothing
+toTypeInfix ts = case getInfixCons ts of 
+        	Nothing -> Nothing 
+        	Just i  -> Just (i, "? " ++ i ++ " ?", params i (trimSpaceToken ts))
+    where 
+        getInfixCons []           = Nothing
+        getInfixCons (Sym t : ts) = Just t
+        getInfixCons (t:ts)       = getInfixCons ts     
+        params i ts = map toParam $ splitOn [Sym i] ts
+        toParam t = (trimString (toksOut t), Nothing)
+
 
 {-|
   Ensure data is snaitized before running this!
@@ -79,17 +88,31 @@ unwrapTypeToks toks = {- trace ("unwrapTypeToks: " ++ show toks) -} (go $ trimSp
 toData :: [Tok] -> Maybe Data
 toData [] = Nothing
 toData ts = case left ts of 
-        Nothing -> Nothing
+        Nothing -> trace "left ts returned nothing" Nothing
         Just tl -> Just (tl, right ts)
     where 
-        split ts    = (left ts, right ts)
-        left ts     = unwrapTypeToks $ trimSpaceToken $ head $ splitEq ts
-        right ts    = mapMaybe unwrapTypeToks $ map trimSpaceToken $ splitSym $ concat $ tail $ splitEq ts
-        splitEq ts  = splitOn [Sym "="] ts
-        splitSym ts = splitOn [Sym "|"] ts
+        left ts          = unwrapTypeToks $ trimSpaceToken $ seekToDef $ head $ splitEq ts
+        right ts         = mapMaybe (unwrapTypeToks . trimSpaceToken) (splitSym $ concat $ tail $ splitEq ts)
+        splitEq          = splitOn [Sym "="] 
+        splitSym         = splitOn [Sym "|"] 
+        seekToDef (KW _ : ts) = seekToDef ts
+        seekToDef (T Ty ts : _) = ts 
+        seekToDef (Spc _ : ts) = seekToDef ts
+        seekToDef ts = ts 
+
+toDataFromGhci :: String -> Maybe Data
+toDataFromGhci str = toData $ concat $ ready "" (clean str) 
+   where 
+     clean ss = concat $ map dropDashDash $ filter (not . (isPrefixOf "instance")) $ lines ss 
+     dropDashDash [] = [] 
+     dropDashDash ('-' : '-' : _) = [] 
+     dropDashDash (t:ts) = t : dropDashDash ts
+
+toDataFromTokens :: [[Tok]] -> Maybe Data
+toDataFromTokens toks = undefined
 
 lookupType :: Type -> Maybe Data
-lookupType t = {-trace (show dataLib)-} (lookupType' t dataLib)
+lookupType t = lookupType' t dataLib
 
 lookupType' :: Type -> [Data] -> Maybe Data
 lookupType' _ [] = Nothing
@@ -100,11 +123,9 @@ lookupType' i (t:ts) = if getId i == getIdFromType t then Just t else lookupType
         getIdFromType d = getId (getType d)
 
 dataLib :: [Data]
-dataLib = mapMaybe tType [
+dataLib = mapMaybe toDataFromGhci [
+    "data [] a = [] | a : [a] deriving (Show, Eq)",
     "data Bool = False | True",
-    "data Either a b = Left a | Right b",
-    "data Maybe a = Nothing | Just a",
-    "type String = [Char]"]
-    where tType s = toData $ head $ ready "" s 
-
-
+    "data Either a b = Left {-l-}a | Right {-r-}b",
+    "data Maybe a = Nothing | Just {-a-}a"
+    ]
