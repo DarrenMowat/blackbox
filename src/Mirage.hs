@@ -17,29 +17,29 @@ import System.FilePath ((</>))
 type ErrPosition = (String, Int, Int)
 type Err = (ErrPosition, [String])
 
-runMirage :: FilePath -> IO (Either String ())
-runMirage file = runMirageR file 5
+runMirage :: FilePath -> FilePath -> IO (Either String ())
+runMirage ghci file = runMirageR ghci file 5
 
-runMirageR :: FilePath -> Int -> IO (Either String ())
-runMirageR file 0     = do 
+runMirageR :: FilePath -> FilePath -> Int -> IO (Either String ())
+runMirageR ghci file 0     = do 
     let (dir, name) = splitPath file 
     exists <- doesFileExist file
     case exists of 
         False -> return (mirageError name "Couldn't load file")
         True  -> do 
-            response <- runCommandList file [] 
+            response <- runCommandList ghci file [] 
             case lookup (LOAD name) response of 
                  Nothing -> return (mirageError name "Unknown Error")
                  Just loadResp -> case readGhciError loadResp of 
                         [] -> return (Right ())
                         es -> return (mirageError name (show es))
-runMirageR file count = do 
+runMirageR ghci file count = do 
     let (dir, name) = splitPath file 
     exists <- doesFileExist file
     case exists of 
         False -> return (mirageError name "Couldn't load file")
         True  -> do 
-            response <- runCommandList file [] 
+            response <- runCommandList ghci file [] 
             case lookup (LOAD name) response of 
                  Nothing -> return (mirageError name "Unknown Error")
                  Just loadResp -> case readGhciError loadResp of 
@@ -54,18 +54,18 @@ runMirageR file count = do
                                     let clines = lines contents
                                     fixErrors file name count clines ourerrs
                                 xs -> do 
-                                    otherResults <- mapMirage (map (dir </>) otherfiles)
+                                    otherResults <- mapMirage ghci (map (dir </>) otherfiles)
                                     case otherResults of 
-                                        Right _ -> runMirageR file (count - 1)
+                                        Right _ -> runMirageR ghci file (count - 1)
                                         Left e  -> return (Left e)
 
-mapMirage :: [FilePath] -> IO (Either String ())
-mapMirage []     = return (Right ())
-mapMirage (f:fs) = do 
-    oMirage <- runMirage f
+mapMirage :: FilePath -> [FilePath] -> IO (Either String ())
+mapMirage ghci []     = return (Right ())
+mapMirage ghci (f:fs) = do 
+    oMirage <- runMirage ghci f
     case oMirage of 
         Left e  -> return (Left e)
-        Right _ -> mapMirage fs
+        Right _ -> mapMirage ghci fs
 
 mirageError :: String -> String -> Either String ()
 mirageError name error = Left ("Couldn't load " ++ name ++ " into GHCI - " ++ error)

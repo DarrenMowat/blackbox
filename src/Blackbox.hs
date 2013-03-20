@@ -16,8 +16,8 @@ import Function.Scope (insertScopes)
 
 -- Actually do some stuff
 
-runBlackbox :: FilePath -> FilePath -> IO (Either String String)  
-runBlackbox file mfile = do
+runBlackbox :: FilePath -> FilePath -> FilePath -> IO (Either String String)  
+runBlackbox file mfile ghci = do
     -- 1) Make full copy of CWD, Don't want to damage the users files
     let (dir, name) = splitPath file
     newdir <- copyToNewTempDir dir
@@ -28,17 +28,17 @@ runBlackbox file mfile = do
     --    Does its stuff. Explain this in the report.
     tokens <- tokeniseFile mfile
     -- 3) Ensure we can work with the file by runnign Mirage over it
-    mirageResp <- runMirage infile
+    mirageResp <- runMirage ghci infile
     case mirageResp of 
         Left errors -> return (Left errors)
         Right _     -> do 
           -- 4) Do something interesting to the file
           -- Split Patterns {-SPLIT-}
-          postSplitTokens <- splitPatterns infile tokens
+          postSplitTokens <- splitPatterns ghci infile tokens
           -- Insert Type Lines {-TYPELINE-}
-          postInsertTypeTokens <- insertTypeLines infile postSplitTokens
+          postInsertTypeTokens <- insertTypeLines ghci infile postSplitTokens
           -- Insert Scopes {-SCOPE-}
-          postInsertScopes <- insertScopes infile postInsertTypeTokens
+          postInsertScopes <- insertScopes infile ghci postInsertTypeTokens
           -- 4) Tidy up after ourselves, we're running in a temp dir but it's still nice to be tidy (OCD)
           removeDirectoryRecursive newdir
           return (Right (untokeniseFile postInsertScopes))

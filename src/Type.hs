@@ -5,12 +5,10 @@ import Language.Haskell.Her.HaLay
 import ListUtils
 import Data.Maybe (mapMaybe, isJust)
 import Data.List.Split (splitOn)
+import Text.ParserCombinators.Parsec (parse, manyTill, anyChar, try, string, manyTill)
 import Data.List (intersperse, isPrefixOf)
 import TokenUtils
 import Data.Char
-
-import Debug.Trace (trace)
-
 
 type Identifier = String
 type Layout = String
@@ -34,8 +32,17 @@ unwrapTypeToks ts = if isInfixCons stripped then toTypeInfix stripped else toTyp
 
 toType :: [Tok] -> Maybe Type 
 toType [] = Nothing
-toType ts = trace (show toks) (Just (iden toks, concat (layout toks), params toks))
+toType ts = Just (iden toks, concat (layout toks), (maybeZipNames (params toks) (mapParams (toksOut toks))))
     where 
+        maybeZipNames ps ns = if length ps == length ns then zipParamNames ps ns else ps
+        zipParamNames [] [] = []
+        zipParamNames ((name, _): ps) (n:ns) = (name, (Just n)) : zipParamNames ps ns
+        mapParams [] = [] 
+        mapParams ('{':'-':xs) = (toEndCom xs) : mapParams xs
+        mapParams (t:ts) = mapParams ts
+        toEndCom [] = [] 
+        toEndCom ('-':'}':_) = [] 
+        toEndCom (t:ts) = t : toEndCom ts 
     	toks = trimSpaceToken ts
         iden (Uid idn : ts) = idn
         iden ts = filter (not . isSpace) $ concat $ filter (/="{?}") $ layout (trimSpaceToken ts)
@@ -62,18 +69,22 @@ toType ts = trace (show toks) (Just (iden toks, concat (layout toks), params tok
     	toParams [] = []
         toParams (KW "deriving" : _) = []
         toParams (KW "instance" : _) = []
-        toParams (Com _ : ts) = toParams ts
     	toParams (B _ ts : tss) = toParams ts ++ toParams tss
-    	toParams (Lid a : ts) = (a, Nothing) : toParams ts
-    	toParams (Uid a : ts) = (a, Nothing) : toParams ts
+        toParams (Lid a : ts) = (a, Nothing) : toParams ts
+        toParams (Com n : Lid a : ts) = (a, Just n) : toParams ts
+        toParams (Uid a : ts) = (a, Nothing) : toParams ts
+        toParams (Com n : Uid a : ts) = (a, Just n) : toParams ts
     	toParams (T Ty ts : tss)   = toParams ts ++ toParams tss
+        toParams (Com _ : ts) = toParams ts
         toParams (t:ts) = toParams ts
+
+
 
 toTypeInfix :: [Tok] -> Maybe Type 
 toTypeInfix [] = Nothing
 toTypeInfix ts = case getInfixCons ts of 
         	Nothing -> Nothing 
-        	Just i  -> Just (i, "? " ++ i ++ " ?", params i (trimSpaceToken ts))
+        	Just i  -> Just (i, "{?} " ++ i ++ " {?}", params i (trimSpaceToken ts))
     where 
         getInfixCons []           = Nothing
         getInfixCons (Sym t : ts) = Just t
@@ -88,8 +99,8 @@ toTypeInfix ts = case getInfixCons ts of
 toData :: [Tok] -> Maybe Data
 toData [] = Nothing
 toData ts = case left ts of 
-        Nothing -> trace "left ts returned nothing" Nothing
-        Just tl -> Just (tl, right ts)
+        Nothing -> Nothing
+        Just (iden, layout, ps) -> Just ((iden, layout, ps), right ts)
     where 
         left ts          = unwrapTypeToks $ trimSpaceToken $ seekToDef $ head $ splitEq ts
         right ts         = mapMaybe (unwrapTypeToks . trimSpaceToken) (splitSym $ concat $ tail $ splitEq ts)
@@ -124,8 +135,13 @@ lookupType' i (t:ts) = if getId i == getIdFromType t then Just t else lookupType
 
 dataLib :: [Data]
 dataLib = mapMaybe toDataFromGhci [
-    "data [] a = [] | a : [a] deriving (Show, Eq)",
+    "data [] a = [] | {-x-}a : {-xs-}[a]",
     "data Bool = False | True",
     "data Either a b = Left {-l-}a | Right {-r-}b",
-    "data Maybe a = Nothing | Just {-a-}a"
+    "data Maybe a = Nothing | Just {-x-}a"
     ]
+
+parseBetween s e = do { manyTill anyChar (try (string s))
+                       ; manyTill anyChar (try (string e))
+                       } 
+

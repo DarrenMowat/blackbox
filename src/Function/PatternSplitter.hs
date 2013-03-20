@@ -5,9 +5,10 @@ import System.FilePath ((</>))
 import System.Directory (removeDirectoryRecursive)
 import Language.Haskell.Her.HaLay 
 import Data.List.Split (splitOn)
-import Data.List (intercalate, elem, isSuffixOf, intersperse)
+import Data.List (intercalate, elem, isSuffixOf, intersperse, cycle, subsequences, null)
 import Text.ParserCombinators.Parsec (parse, manyTill, anyChar, try, string, manyTill)
 import Data.Maybe (mapMaybe)
+import Data.Char
 import Debug.Trace (trace)
 import System.IO
 
@@ -20,52 +21,80 @@ import Type
 import Function.TypeFooler
 import Function.Scope
 
+-- Horrid random name generator, we have support for functions with a huge number of paramaters though... :P 
 names :: [String]
-names = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o"]
+names = filter (not . null) (subsequences ['a'..'z'])
 
 splitIdentifier :: Tok
 splitIdentifier = Com "{-SPLIT-}"
 
-splitPatterns :: FilePath -> [[Tok]] -> IO [[Tok]]
-splitPatterns file tokens = do mapSplit file (findLinesWithToken splitIdentifier tokens) tokens
+splitPatterns :: FilePath -> FilePath -> [[Tok]] -> IO [[Tok]]
+splitPatterns ghci file tokens = do mapSplit ghci file (findLinesWithToken splitIdentifier tokens) tokens
 
-mapSplit :: FilePath -> [[Tok]] -> [[Tok]] -> IO [[Tok]]
-mapSplit file [] tokens     = return tokens
-mapSplit file (t:ts) tokens = do 
-    tokens <- splitIt file t tokens
-    mapSplit file ts tokens
+mapSplit :: FilePath -> FilePath -> [[Tok]] -> [[Tok]] -> IO [[Tok]]
+mapSplit ghci file [] tokens     = return tokens
+mapSplit ghci file (t:ts) tokens = do 
+    tokens <- splitIt ghci file t tokens
+    mapSplit ghci file (findLinesWithToken splitIdentifier tokens) tokens
 
-splitIt :: FilePath -> [Tok] -> [[Tok]] -> IO [[Tok]]
-splitIt file line tokens = do 
+
+
+splitIt :: FilePath -> FilePath -> [Tok] -> [[Tok]] -> IO [[Tok]]
+splitIt ghci file line tokens = do 
     let (filePath, fileName) = splitPath file
     -- 1) Extract Function Name from line
     case extractFunctionNameFromLine line of
       Nothing -> return tokens -- Insert Error Message?
       Just fnName -> do 
         let (str, fn, end) = extractFunction fnName tokens
-        fn <- ensureFunctionHasType fnName fn file
+        fn <- ensureFunctionHasType ghci fnName fn file
         let vName = getVariableNameToSplit fn
         case vName of 
           Nothing -> errOut "Couldn't parse variable name to split" splitIdentifier (str, fn, end) 
           Just vName -> do 
-            mType <- findTypeOfVarAtTok file splitIdentifier (str, fn, end) vName
+            mType <- findTypeOfVarAtTok ghci file splitIdentifier (str, fn, end) vName
             case mType of
               Nothing -> errOut "GHCI Failed to parse the file" splitIdentifier (str, fn, end) 
               Just mType -> do 
-                pType <- resolveType mType tokens file
-                hPutStrLn stderr ("Type: " ++ show pType)
+                pType <- resolveType ghci mType tokens file
                 case pType of 
                   Left err -> errOut "Failed to resolve the variables type" splitIdentifier (str, fn, end) 
                   Right types -> do 
-                      let pats = concat $ map (stringifyType vName) types
-                      let fn2 = insertPatterns fn pats
-                      return (str ++ fn2 ++ end) 
+                      hPutStrLn stderr ("Type lookup >> " ++ show mType ++ " >> " ++ show types)
+                      let scope = inScope splitIdentifier fn 
+                      hPutStrLn stderr ("Current scope >> " ++ show scope)
+                      let pats = map (stringifyPattern vName scope) types
+                      hPutStrLn stderr ("Patterns >> " ++ show pats)
+                      let bindings = bindPatterns fn pats 
+                      hPutStrLn stderr ("Binding >> " ++ show bindings)
+                      return (str ++ bindings ++ end) 
 
-insertPatterns :: [[Tok]] -> [String] -> [[Tok]]
-insertPatterns fn []  = fn
-insertPatterns (l:ls) ns = case elemToken splitIdentifier l of 
-    True -> (intersperse [(NL (".hers", 0))] (map (generateLine l) ns)) ++ ls
-    False -> l : insertPatterns ls ns
+bindPatterns :: [[Tok]] -> [String] -> [[Tok]]
+bindPatterns [] [] = [] 
+bindPatterns (t:ts) ns = case elemToken splitIdentifier t of 
+  False -> t : bindPatterns ts ns
+  True  -> if isNested t then (seekL t) : ts else 
+      (intersperse [(NL (".hers", 0))] (map (generateLine t) ns)) ++ ts  
+    where 
+      isNested [] = True
+      isNested (B _ ls : ts) = if elemToken splitIdentifier ls then False else isNested ts
+      isNested (T _ ls : ts) = if elemToken splitIdentifier ls then False else isNested ts
+      isNested (t:ts) = if t == splitIdentifier then False else isNested ts
+      getBefore [] = [] 
+      getBefore (t:tt:ts) = if elemToken splitIdentifier tt then [] else t : getBefore (tt:ts)
+      getBefore (t:ts) = if elemToken splitIdentifier t then [] else t : getBefore ts
+      getNested [] = [] 
+      getNested (t:tt:ts) = if elemToken splitIdentifier tt then t : tt : [] else getNested (tt:ts)
+      getNested (t:ts) = if elemToken splitIdentifier t then t : [] else getNested ts
+      getAfter [] = [] 
+      getAfter (t:tt:ts) = if elemToken splitIdentifier tt then ts else getAfter (tt:ts)
+      getAfter (t:ts) = if elemToken splitIdentifier t then ts else getAfter ts
+      doInsert ts = getBefore ts ++ (insert (getNested ts)) ++ getAfter ts
+      seekL [] = [] 
+      seekL (L l ls : ts) = if elemTokenArr splitIdentifier ls then L l (doInsert ls) : ts else L l ls : seekL ts
+      seekL (t:ts) = t : seekL ts
+      insert ts = trace ("Nested Binding: " ++ show ts) (map (generateLine (concat ts)) ns)
+
 
 generateLine :: [Tok] -> String -> [Tok]
 generateLine line pat = fSplit line
@@ -75,9 +104,6 @@ generateLine line pat = fSplit line
       insert ((Lid _) : ts) = (concat $ tokeniseString pat) ++ ts
       insert (t:ts) = t : insert ts
       fSplit [] = []
-      fSplit ((L l ls) : ts) = case elemTokenArr splitIdentifier ls of 
-        True  -> (L l (insertPatterns ls [pat])) : ts
-        False -> (L l ls) : fSplit ts
       fSplit ((B b rs):ts)    = case elemToken splitIdentifier rs of 
         True  -> (B b (fSplit rs)) : ts 
         False -> (B b rs) : fSplit ts 
@@ -87,21 +113,30 @@ generateLine line pat = fSplit line
       fSplit ((Com "{-SPLIT-}") : ts) = insert ts
       fSplit (t:ts) = t : fSplit ts
 
-stringifyType :: String -> Type -> [String]
-stringifyType vn ("[]", lay, ps) = stringifyArray vn 
-stringifyType vn (iden, lay, []) = [iden]
-stringifyType vn (iden, lay, ps) = [layout lay mknames]
+stringifyPattern :: String -> [String] -> Type -> String
+stringifyPattern vn scope (iden, lay, []) = iden
+stringifyPattern vn scope (iden, lay, ps) = brackets (layout lay (genSensibleNames vn (filter (/=vn) scope) ps))
     where 
+      brackets [] = []
+      brackets ('(':bs) = '(' : bs
+      brackets ('[':bs) = '[' : bs
+      brackets (' ':bs) = brackets bs
+      brackets bs = "(" ++ bs ++ ")"
       mknames = take (length ps) names
       layout [] _ = []
-      layout ls [] = ls
       layout ('{': '?' : '}' : ls) (n:ns) = n ++ (layout ls ns)
       layout (l:ls) ns = [l] ++ (layout ls ns)
 
-
-stringifyArray :: String -> [String]
-stringifyArray vname = ["[]", "(x : xs)"]
-
+genSensibleNames :: String -> [String] -> [Paramater] -> [String]
+genSensibleNames vname _ [] = [] 
+genSensibleNames vname scope ((st, Nothing) : ps) = mkName : genSensibleNames vname (mkName : scope) ps
+  where 
+    mkName = if elem vname scope then modName 1 else vname
+    modName i = if elem (vname ++ (show i)) scope then modName (i+1) else (vname ++ (show i))
+genSensibleNames vname scope ((_, Just str) : ps)  = mkName : genSensibleNames vname (mkName : scope) ps
+  where 
+    mkName = if elem str scope then modName 1 else str
+    modName i = if elem (str ++ (show i)) scope then modName (i+1) else (str ++ (show i))
 {-|
   getVariableNameToSplit will traverse the tokens and find the name of
   the variable after {-SPLIT-}
@@ -131,8 +166,8 @@ getVariableNameToSplit (l:ls) = case elemToken splitIdentifier l of
 
 {- Code to grab a constructor -}
 
-getConstructor :: Type -> [[Tok]] -> FilePath -> IO (Maybe Data)
-getConstructor (name, layout, params) tokens file = do 
+getConstructor :: FilePath -> Type -> [[Tok]] -> FilePath -> IO (Maybe Data)
+getConstructor ghci (name, layout, params) tokens file = do 
     case lookupType (name, layout, params) of 
         Just cons -> return (Just cons)
         Nothing -> do 
@@ -140,30 +175,16 @@ getConstructor (name, layout, params) tokens file = do
             case resp of 
               Just cons -> return (Just cons)
               Nothing -> do 
-                resp <- getConstructorFromGHCI name file
+                resp <- getConstructorFromGHCI ghci name file
                 return resp
 
 getConstructorFromTok :: String -> [[Tok]] -> Maybe Data
-getConstructorFromTok name []     = Nothing 
-getConstructorFromTok name (t:ts) = case findCons (trimSpaceToken t) of 
-    Nothing -> getConstructorFromTok name ts
-    Just _ -> toData t 
-    where 
-      findCons [] = Nothing
-      findCons (Sym "=" : xs)   = Nothing 
-      findCons (Sym "::" : xs)   = Nothing 
-      findCons (KW "data" : xs) = findUid $ trimSpaceToken xs
-      findCons (KW "type" : xs) = findUid $ trimSpaceToken xs
-      findCons _ = Nothing
-      findUid (Sym "=" : _)   = Nothing 
-      findUid (Sym "::" : _)   = Nothing 
-      findUid (Uid n : _) = if n == name then Just () else Nothing
-      findUid (_:xs) = Nothing
+getConstructorFromTok _ _ = Nothing 
 
-getConstructorFromGHCI :: String -> FilePath -> IO (Maybe Data)
-getConstructorFromGHCI name file = do 
+getConstructorFromGHCI :: FilePath -> String -> FilePath -> IO (Maybe Data)
+getConstructorFromGHCI ghci name file = do 
     let cmd = INFO name
-    resp <- runCommandList file [cmd]
+    resp <- runCommandList ghci file [cmd]
     case lookup cmd resp of 
         Nothing -> return Nothing
         Just resp -> do 
@@ -171,9 +192,8 @@ getConstructorFromGHCI name file = do
                 [] -> return Nothing  
                 resp -> return $ toDataFromGhci resp
 
-
-resolveType :: String -> [[Tok]] -> FilePath -> IO (Either String [Type]) 
-resolveType name tokens file = do 
+resolveType :: FilePath -> String -> [[Tok]] -> FilePath -> IO (Either String [Type]) 
+resolveType ghci name tokens file = do 
     case isPrimitive name of 
       True  -> return (Left "Type is primitive")
       False -> do 
@@ -184,23 +204,23 @@ resolveType name tokens file = do
             case isSplittable uType of 
                 True  -> return (Right [uType])
                 False -> do 
-                  types <- getConstructor uType tokens file
+                  types <- getConstructor ghci uType tokens file
                   case types of 
                     Nothing    -> return (Left "Couldnt find a valid constructor")
-                    Just (typ, types) -> return (Right types)
+                    Just ((iden, lay, ps), types) -> do 
+                      case lookupType (head types) of 
+                        Just (_, dat) -> return (Right dat)
+                        Nothing  -> return (Right types)
 
 isSplittable :: Type -> Bool
-isSplittable (i, l, ps) = isArray i || isTuple i
-
-isArray :: String -> Bool
-isArray "[]" = True
-isArray _    = False
+isSplittable (i, l, ps) = isTuple i
 
 isTuple :: String -> Bool
 isTuple [] = False
 isTuple (')' : []) = True
 isTuple ('(' : xs) = isTuple xs
 isTuple (',' : xs) = isTuple xs
+isTuple (' ' : xs) = isTuple xs
 isTuple _ = False
 
 {-|

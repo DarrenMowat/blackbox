@@ -13,24 +13,24 @@ import ListUtils
 tlIdentifier :: Tok
 tlIdentifier = Com "{-TYPELINE-}"
 
-insertTypeLines :: FilePath -> [[Tok]] -> IO [[Tok]]
-insertTypeLines file tokens = mapInsert file (findLinesWithToken tlIdentifier tokens) tokens
+insertTypeLines :: FilePath -> FilePath -> [[Tok]] -> IO [[Tok]]
+insertTypeLines ghci file tokens = mapInsert ghci file (findLinesWithToken tlIdentifier tokens) tokens
 
-mapInsert :: FilePath -> [[Tok]] -> [[Tok]] -> IO [[Tok]]
-mapInsert file [] tokens     = return tokens
-mapInsert file (t:ts) tokens = do 
-    tokens <- insertType file t tokens
-    mapInsert file ts tokens
+mapInsert :: FilePath -> FilePath -> [[Tok]] -> [[Tok]] -> IO [[Tok]]
+mapInsert ghci file [] tokens     = return tokens
+mapInsert ghci file (t:ts) tokens = do 
+    tokens <- insertType ghci file t tokens
+    mapInsert ghci file ts tokens
 
-insertType :: FilePath -> [Tok] -> [[Tok]] -> IO [[Tok]]
-insertType file line tokens = do 
+insertType :: FilePath -> FilePath -> [Tok] -> [[Tok]] -> IO [[Tok]]
+insertType ghci file line tokens = do 
     let (filePath, fileName) = splitPath file
     -- 1) Extract Function Name from line
     case extractFunctionNameFromLine line of
       Nothing -> return tokens 
       Just fnName -> do 
         let (str, fn, end) = extractFunction fnName tokens
-        fn <- ensureFunctionHasType fnName fn file
+        fn <- ensureFunctionHasType ghci fnName fn file
         let fn2 = deleteFirstTokenOcc tlIdentifier fn
         return (str ++ fn2 ++ end)
 
@@ -39,13 +39,13 @@ insertType file line tokens = do
   high level type line.
   If it doesn't attempt to get one from GHCI
 -}
-ensureFunctionHasType :: String -> [[Tok]] -> FilePath -> IO [[Tok]]
-ensureFunctionHasType name tokens file = case head tokens of 
+ensureFunctionHasType :: FilePath -> String -> [[Tok]] -> FilePath -> IO [[Tok]]
+ensureFunctionHasType ghci name tokens file = case head tokens of 
     [] -> return []
     xs -> case elemToken (Sym "::") xs of 
       True  -> return tokens
       False -> do 
-        fntype <- getFunctionTypeFromGHCI file name
+        fntype <- getFunctionTypeFromGHCI ghci file name
         case fntype of 
           Nothing -> return tokens
           Just fntype -> do 
@@ -55,10 +55,10 @@ ensureFunctionHasType name tokens file = case head tokens of
 {-| 
   Query GHCI for the type of a function
 -}
-getFunctionTypeFromGHCI :: FilePath -> String -> IO (Maybe String)
-getFunctionTypeFromGHCI file name = do 
+getFunctionTypeFromGHCI :: FilePath -> FilePath -> String -> IO (Maybe String)
+getFunctionTypeFromGHCI ghci file name = do 
     let cmd = TYPEINFO name 
-    resp <- runCommandList file [cmd]
+    resp <- runCommandList ghci file [cmd]
     case lookup cmd resp of 
         Nothing   -> return Nothing 
         Just resp -> return $ Just (readGhciOutput resp)

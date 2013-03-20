@@ -17,32 +17,29 @@ import Function.TypeFooler
 scopeIdentifier :: Tok
 scopeIdentifier = Com "{-SCOPE-}"
 
-insertScopes :: FilePath -> [[Tok]] -> IO [[Tok]]
-insertScopes file tokens = do mapScope file (findLinesWithToken scopeIdentifier tokens) tokens
+insertScopes :: FilePath -> FilePath -> [[Tok]] -> IO [[Tok]]
+insertScopes ghci file tokens = do mapScope ghci file (findLinesWithToken scopeIdentifier tokens) tokens
 
-mapScope :: FilePath -> [[Tok]] -> [[Tok]] -> IO [[Tok]]
-mapScope file [] tokens     = return tokens
-mapScope file (t:ts) tokens = do 
-    tokens <- insertScope file t tokens
-    mapScope file ts tokens
+mapScope :: FilePath -> FilePath -> [[Tok]] -> [[Tok]] -> IO [[Tok]]
+mapScope ghci file [] tokens     = return tokens
+mapScope ghci file (t:ts) tokens = do 
+    tokens <- insertScope ghci file t tokens
+    mapScope ghci file ts tokens
 
-insertScope :: FilePath -> [Tok] -> [[Tok]] -> IO [[Tok]]
-insertScope file line tokens = do 
+insertScope :: FilePath -> FilePath -> [Tok] -> [[Tok]] -> IO [[Tok]]
+insertScope ghci file line tokens = do 
     let (filePath, fileName) = splitPath file
     case extractFunctionNameFromLine line of
       Nothing     -> return tokens 
       Just fnName -> do 
         let (str, fn, end) = extractFunction fnName tokens
         let scp = inScope scopeIdentifier fn
-        case scp of 
-          Nothing  -> errOut "Failed to get scope" scopeIdentifier (str, fn, end) 
-          Just scp -> do
-            let scope = filter (/="undefined") $ filter (/=fnName) scp
-            mapping <- mapM (findTypeOfVarAtTok file scopeIdentifier (str, fn, end)) scope
-            let typeMap = makeScopeComment scope mapping
-            let mappingCom = Com ("{- In Scope [ " ++ (intercalate ", " typeMap) ++ " ] -}")
-            let fnmapped = replaceFirstTokenOcc scopeIdentifier mappingCom fn
-            return (str ++ fnmapped ++ end)
+        let scope = filter (/="undefined") $ filter (/=fnName) scp
+        mapping <- mapM (findTypeOfVarAtTok ghci file scopeIdentifier (str, fn, end)) scope
+        let typeMap = makeScopeComment scope mapping
+        let mappingCom = Com ("{- In Scope [ " ++ (intercalate ", " typeMap) ++ " ] -}")
+        let fnmapped = replaceFirstTokenOcc scopeIdentifier mappingCom fn
+        return (str ++ fnmapped ++ end)
 
 
 makeScopeComment :: [String] -> [Maybe String] -> [String]
@@ -51,13 +48,13 @@ makeScopeComment (n:ns) (Nothing : ts) = (n ++ " :: Unknown") : makeScopeComment
 makeScopeComment (n:ns) (Just t : ts)  = (n ++ " :: " ++ t) : makeScopeComment ns ts
 
 
-inScope :: Tok -> [[Tok]] -> Maybe [String]
-inScope tok []     = Nothing
+inScope :: Tok -> [[Tok]] -> [String]
+inScope tok []     = []
 inScope tok (t:ts) = case elemToken tok t of 
     False -> inScope tok ts
     True  -> case inLineFunctionNames t of 
-      Nothing    -> Just (nub (scope t))
-      Just names -> Just (nub ((scope t) ++ (filter (/="") names)))
+      Nothing    -> nub (scope t)
+      Just names -> nub ((scope t) ++ (filter (/="") names))
     where 
       scope [] = [] 
       scope ((L _ lss) : ts)  = case elemTokenArr tok lss of 

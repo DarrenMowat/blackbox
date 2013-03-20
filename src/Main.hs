@@ -57,11 +57,12 @@ processFlags f = do
     let ver = lookupFlag "Version" f
     let inf = lookupFlag "Infile" f
     let mar = lookupFlag "Markup" f
+    let ghci = lookupFlag "Ghci" f
     case lookupFlag "Version" f of
         Just v -> showVersion
-        Nothing -> case (inf, mar) of 
-          (Just (Infile ifile), Just (Markup mfile)) -> do 
-            resp <- runBlackbox ifile mfile
+        Nothing -> case (inf, mar, ghci) of 
+          (Just (Infile ifile), Just (Markup mfile), Just (GHCI ghc)) -> do 
+            resp <- runBlackbox ifile mfile ghc
             case resp of 
                Left err   -> do 
                    hPutStrLn stderr err
@@ -69,7 +70,7 @@ processFlags f = do
                Right file -> do
                    putStrLn file
                    exitSuccess
-          (_,_) -> die
+          (_,_,_) -> die
 
 lookupFlag :: String -> [Flag] -> Maybe Flag
 lookupFlag _ [] = Nothing

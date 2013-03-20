@@ -135,29 +135,3 @@ elemToken tok (T _ rts : ts)    = elemToken tok rts || elemToken tok ts
 elemToken tok (L s ls : ts)     = elemTokenArr tok ls || elemToken tok ts 
 elemToken tok (t:ts)            = tok==t || elemToken tok ts
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
