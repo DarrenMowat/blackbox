@@ -62,7 +62,7 @@ inScope tok (t:ts) = case elemToken tok t of
         False -> case elemToken tok ts of 
           True  -> scope ts
           False -> []
-      scope ((B _ rs) : ts)   = takeLid rs ++ scope ts
+      scope ((B _ rs) : ts)   = scope rs ++ takeLid rs ++ scope ts
       scope ((T _ rs) : ts)   = scope rs ++ scope ts
       scope ((Lid var) : ts)  = var : scope ts
       scope ((Sym "=>") : ts) = []

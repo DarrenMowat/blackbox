@@ -92,6 +92,7 @@ errorStrings = [ ("with actual type `", "'")
                , ("Couldn't match expected type `", "'with actual type `BlackboxGHCITypeFooler'")
                , ("Couldn't match expected type `", "' with actual type `BlackboxGHCITypeFooler'")
                , ("`","' is a rigid type variable bound by")]
+               
 
 {-|
   Given a List of GHCi error strings and our tactical type error attempt

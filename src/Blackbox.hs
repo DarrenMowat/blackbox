@@ -47,7 +47,7 @@ runBlackbox file mfile ghci = do
               -- Insert Type Lines {-TYPELINE-}
               postInsertTypeTokens <- insertTypeLines ghci infile postSplitTokens
               -- Insert Scopes {-SCOPE-}
-              postInsertScopes <- insertScopes infile ghci postInsertTypeTokens
+              postInsertScopes <- insertScopes ghci infile postInsertTypeTokens
               -- 4) Tidy up after ourselves, we're running in a temp dir but it's still nice to be tidy (OCD)
               removeDirectoryRecursive newdir
               return (Right (untokeniseFile postInsertScopes))
