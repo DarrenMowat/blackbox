@@ -1,10 +1,12 @@
-![Blackbox](https://raw.github.com/DarrenMowat/blackbox/master/web/Blackbox.png)
+![Blackbox](https://raw.github.com/DarrenMowat/blackbox/master/doc/Blackbox.png)
 
 Blackbox is a Haskell source code transformer which allows you to find out interesting things about your program. The main aim of Blackbox is to act as a backend for text editor plugins which helps to expose the type system of Haskell to the user.
 
 Current features include: 
-* Splitting variables into patterns ([a] -> [] | (x:xs))
-* Inserting missing type lines
+
+  * Splitting Pattern Variables
+  * Listing variables in scope & their types at a given point in a program
+  * Inserting missing type lines for functions
 
 Blackbox works by parsing a Haskell file which has special comments in it which tell Blackbox what to do. For example look at the following function
 
@@ -29,22 +31,24 @@ You can then pass the file over to Blackbox and it will return a modified file, 
 
 This project has been undertaken as part of my final year degree project.
 
-Available Plugins
-===========
+## Installation
 
-[Blackbox bindings for Sublime Text 2](https://github.com/DarrenMowat/blackbox-sb2)
+Get a copy of this repository either by 
 
-Installing from Cabal
-=============
+    git clone https://github.com/DarrenMowat/blackbox.git
+    
+Or by downloading it as a zip file from https://github.com/DarrenMowat/blackbox/archive/master.zip
 
-I haven’t gotten around to submitting this to cabal yet but I will eventually. In the mean time install it from source.
+    cd blackbox
+    cabal configure
+    cabal install
+   
+The blackbox binary should now be available on your PATH somewhere 
 
+## Available Plugins
 
-Building from source 
-=============
+[Blackbox for Sublime Text 2](https://github.com/DarrenMowat/blackbox-sb2)
 
-git clone https://github.com/DarrenMowat/blackbox.git
-cd blackbox
-cabal configure
-cabal build
-cabal install 
+## Developing Plugins
+
+If you fancy contributing a compatible text editor plugin to the project read the instructions in [DEVELOPER.md](https://github.com/DarrenMowat/blackbox/blob/master/DEVELOPER.md)

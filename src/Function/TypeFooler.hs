@@ -88,11 +88,13 @@ typeFoolerCaller varName = head $ tokeniseString ("= plzTellMeTheTypeGHCI " ++ v
 -- Add more below to account for more errors, diffrent versions etc
 errorStrings :: [(String, String)]
 errorStrings = [ ("with actual type `", "'")
+               , ("Couldn't match expected type `BlackboxGHCITypeFooler'\nwith actual type `", "'")
                , ("Couldn't match type `", "' with `BlackboxGHCITypeFooler'")
+               , ("Couldn't match expected type `", "'\nwith actual type `BlackboxGHCITypeFooler'")
                , ("Couldn't match expected type `", "'with actual type `BlackboxGHCITypeFooler'")
+               , ("Couldn't match expected type `", "' \nwith actual type `BlackboxGHCITypeFooler'")
                , ("Couldn't match expected type `", "' with actual type `BlackboxGHCITypeFooler'")
                , ("`","' is a rigid type variable bound by")]
-               
 
 {-|
   Given a List of GHCi error strings and our tactical type error attempt
