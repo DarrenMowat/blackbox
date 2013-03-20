@@ -54,14 +54,15 @@ buildAL n (c:cs) = (n, c) : buildAL (n + 1) cs
 
 runCommandList :: FilePath -> FilePath -> [GHCICommand] -> IO [GHCIResponse] 
 runCommandList ghci f cs = do
-	let al = buildAL 1 $ wrapStandardCommands f (nub cs)
-	let cmds = wrapCommandList al
-	let ins = intercalate "\n" (map show cmds)
-	bash <- getDataFileName "annotate.sh"
-	out <- readProcess bash [ghci] ins
-	let resp = splitResponses al out 
-	hPutStrLn stderr (show resp)
-	return resp
+  let al = buildAL 1 $ wrapStandardCommands f (nub cs)
+  let cmds = wrapCommandList al
+  let ins = intercalate "\n" (map show cmds)
+  bash <- getDataFileName "annotate.sh"
+  hPutStrLn stderr (show bash)
+  out <- readProcess bash [ghci] ins
+  let resp = splitResponses al out 
+  hPutStrLn stderr (show resp)
+  return resp
 
 splitResponses :: [(Int, GHCICommand)] -> String -> [GHCIResponse] 
 splitResponses [] _ = [] 
