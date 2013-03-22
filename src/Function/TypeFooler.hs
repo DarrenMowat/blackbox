@@ -21,12 +21,35 @@ findTypeOfVarAtTok ghci file tok (str, fn, end) vname = do
     case extractFunctionNameFromLine (head fn) of
       Nothing -> return Nothing
       Just fnName -> do 
-      	let (filePath, fileName) = splitPath file
+        let (filePath, fileName) = splitPath file
         nfn <- ensureFunctionHasType ghci fnName fn file
-        let newFn = insertTacticalTypeError vname tok nfn 
+        let newFn = insertTacticalTypeError tok (typeFoolerCaller vname) nfn 
         case newFn == fn of 
-        	True  -> return (Just "Couldnt insert type fooler")
-        	False -> do
+          True  -> return (Just "Couldnt insert type fooler")
+          False -> do
+                let newEnd = insertTypeFooler end
+                let newFile = untokeniseArr (str ++ newFn ++ newEnd)
+                writeFile file newFile
+                response <- runCommandList ghci file [] 
+                writeFile file (tokssOut (str ++ fn ++ end))
+                case lookup (LOAD fileName) response of 
+                  Nothing -> return Nothing
+                  Just loadErrResp -> do 
+                    case parseTacticalTypeError errorStrings (readGhciError loadErrResp) of 
+                      Nothing -> return Nothing
+                      Just mType -> return (Just mType)
+
+findReturnTypeAtTok :: FilePath -> FilePath -> Tok -> ([[Tok]], [[Tok]], [[Tok]]) -> IO (Maybe String)
+findReturnTypeAtTok ghci file tok (str, fn, end) = do 
+    case extractFunctionNameFromLine (head fn) of
+      Nothing -> return Nothing
+      Just fnName -> do 
+        let (filePath, fileName) = splitPath file
+        nfn <- ensureFunctionHasType ghci fnName fn file
+        let newFn = insertTacticalTypeError tok typeFoolerReturnType nfn 
+        case newFn == fn of 
+          True  -> return (Just "Couldnt insert type fooler")
+          False -> do
                 let newEnd = insertTypeFooler end
                 let newFile = untokeniseArr (str ++ newFn ++ newEnd)
                 writeFile file newFile
@@ -45,15 +68,15 @@ findTypeOfVarAtTok ghci file tok (str, fn, end) vname = do
   of the binding if it exists
 -}
 
-insertTacticalTypeError :: String -> Tok -> [[Tok]] -> [[Tok]]
-insertTacticalTypeError name tok []     = []
-insertTacticalTypeError name tok (t:ts) = case elemToken tok t of 
-    False -> t : insertTacticalTypeError name tok ts
+insertTacticalTypeError :: Tok -> [Tok] -> [[Tok]] -> [[Tok]]
+insertTacticalTypeError tok er []     = []
+insertTacticalTypeError tok er (t:ts) = case elemToken tok t of 
+    False -> t : insertTacticalTypeError tok er ts
     True  -> scope t : ts
     where 
       scope [] = [] 
       scope ((L x lss) : ts)  = case elemTokenArr tok lss of 
-        True  -> (L x (insertTacticalTypeError name tok lss)) : ts
+        True  -> (L x (insertTacticalTypeError tok er lss)) : ts
         False -> (L x lss) : scope ts
       scope ((B x rs) : ts)   = case elemToken tok rs of 
         True  -> (B x rs) : insert ts 
@@ -62,18 +85,19 @@ insertTacticalTypeError name tok (t:ts) = case elemToken tok t of
         True  -> (T x rs) : insert ts 
         False -> (T x rs) : scope ts 
       scope ((Sym "=") : ts)  = case elemOuter tok ts of 
-      	True  -> typeFoolerCaller name
-      	False -> (Sym "=") : scope ts
+        True  -> er
+        False -> (Sym "=") : scope ts
       scope (t:ts)            = case t == tok of 
         True  -> t : insert ts
         False -> t : scope ts
       insert [] = []
-      insert ((Sym "=") : ts) = typeFoolerCaller name
+      insert ((Sym "=") : ts) = er
       insert (t:ts) = t : insert ts
       elemOuter tok [] = False
       elemOuter tok (t:ts) = case t == tok of 
         True  -> True 
         False -> elemOuter tok ts
+
 {-|
   Add Type Fooler will tag our BlackboxGHCITypeFooler class & plzTellMeTheTypeGHCI onto the end of the 
   class
@@ -83,6 +107,9 @@ insertTypeFooler tokens = tokens ++ typeFoolerDataType
 
 typeFoolerCaller :: String -> [Tok]
 typeFoolerCaller varName = head $ tokeniseString ("= plzTellMeTheTypeGHCI " ++ varName)
+
+typeFoolerReturnType :: [Tok]
+typeFoolerReturnType = head $ tokeniseString ("= BlackboxGHCITypeFooler")
 
 -- These are Strings GHCI wraps type errors in,
 -- Add more below to account for more errors, diffrent versions etc

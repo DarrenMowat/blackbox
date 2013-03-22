@@ -36,7 +36,8 @@ insertScope ghci file line tokens = do
         let scp = inScope scopeIdentifier fn
         let scope = filter (/="undefined") $ filter (/=fnName) scp
         mapping <- mapM (findTypeOfVarAtTok ghci file scopeIdentifier (str, fn, end)) scope
-        let typeMap = makeScopeComment scope mapping
+        retType <- findReturnTypeAtTok ghci file scopeIdentifier (str, fn, end)
+        let typeMap = makeScopeComment (scope ++ ["Return Type"]) (mapping ++ [retType])
         let mappingCom = Com ("{- In Scope [ " ++ (intercalate ", " typeMap) ++ " ] -}")
         let fnmapped = replaceFirstTokenOcc scopeIdentifier mappingCom fn
         return (str ++ fnmapped ++ end)

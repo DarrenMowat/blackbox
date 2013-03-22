@@ -93,7 +93,7 @@ bindPatterns (t:ts) ns = case elemToken splitIdentifier t of
       seekL [] = [] 
       seekL (L l ls : ts) = if elemTokenArr splitIdentifier ls then L l (doInsert ls) : ts else L l ls : seekL ts
       seekL (t:ts) = t : seekL ts
-      insert ts = trace ("Nested Binding: " ++ show ts) (map (generateLine (concat ts)) ns)
+      insert ts = map (generateLine (concat ts)) ns
 
 
 generateLine :: [Tok] -> String -> [Tok]
