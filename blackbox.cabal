@@ -33,7 +33,6 @@ executable blackbox
                        FileUtils
                        GHCIProc
                        ListUtils
-                       Mirage
                        TokenUtils
                        Type
                        Function.PatternSplitter
