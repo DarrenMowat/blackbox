@@ -127,7 +127,7 @@ stringifyPattern vn scope (iden, lay, ps) = brackets (layout lay (genSensibleNam
       layout ('{': '?' : '}' : ls) (n:ns) = n ++ (layout ls ns)
       layout (l:ls) ns = [l] ++ (layout ls ns)
 
-genSensibleNames :: String -> [String] -> [Paramater] -> [String]
+genSensibleNames :: String -> [String] -> [Parameter] -> [String]
 genSensibleNames vname _ [] = [] 
 genSensibleNames vname scope ((st, Nothing) : ps) = mkName : genSensibleNames vname (mkName : scope) ps
   where 

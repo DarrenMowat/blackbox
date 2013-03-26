@@ -7,18 +7,18 @@ The aim of this guide is to enable developers to create text editor plugins whic
 ### 1. Markup
 
 The way a text editor plugin communicates with Blackbox is by inserting special command comments into the file, before sending it off to Blackbox for processing. 
-Blackbox currently has support for 3 diffrent commands: SPLIT, SCOPE, TYPELINE.
+Blackbox currently has support for 3 different commands: SPLIT, SCOPE, TYPELINE.
 
 #### Pattern Splitting  
 
-Split commands should be insterted before the variable that the user wants to split. For example to split xs the function should be marker up as follows:
+Split commands should be inserted before the variable that the user wants to split. For example to split xs the function should be marker up as follows:
 
     foo :: String -> String 
     foo {-SPLIT-} xs = undefined 
 
 #### Scope
 
-Scope commands should be inserted on the righ hand side of the function binding that the user wants to determin the scope of. For example: 
+Scope commands should be inserted on the right hand side of the function binding that the user wants to determine the scope of. For example: 
 
     foo :: String -> Maybe Int -> String 
     foo  xs  Nothing = undefined 
@@ -29,13 +29,13 @@ Would return a scope of
 
 #### Inserting Type Signatures
 
-Type singnatures can be automatically inserted by tagging a function up as follows 
+Type signatures can be automatically inserted by tagging a function up as follows 
 
     foo {-TYPELINE-} xs ys = “”
 
 #### Combinations
 
-Any combination of commands can be issued at once, for example a function definition marked up like so can be proceseed: 
+Any combination of commands can be issued at once, for example a function definition marked up like so can be processed: 
 
     foo :: String -> String -> String 
     foo {-SPLIT-} xs {-SPLIT-} ys = undefined 
@@ -46,7 +46,7 @@ Some text editors allow you to save the file that the user is currently editing,
 
 ### 3. Running Blackbox
 
-The Blackbox binary takes 3 diffrent paramaters:
+The Blackbox binary takes 3 different parameters:
 
 * In file - This is the file on which Blackbox is to be run.
 * Markup File - This is the file that contains the marked up version of the file. This can be the same as the infile.
@@ -59,7 +59,7 @@ Blackbox will respond in 2 ways: Success or Failure. Success is denoted by the B
 #### Success 
 In the successful case the full contents of the Blackbox processes STDOUT should be inserted into the editors buffer, replacing its current contents.
 #### Failure
-In the non-successful case the full contents of the Blackbox processes STDERR should be dispalyed to the user in whatever way is appropriate in the editor. The output on STDERR will contain useful error messages about how to fix the error.
+In the non-successful case the full contents of the Blackbox processes STDERR should be displayed to the user in whatever way is appropriate in the editor. The output on STDERR will contain useful error messages about how to fix the error.
 
 
 

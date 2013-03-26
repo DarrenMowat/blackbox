@@ -1,5 +1,5 @@
 
-module GHCIProc (GHCIResponse (..), GHCICommand (..), HLine (..), runCommandList, readGhciOutput, readGhciError) where
+module GHCIProc (GHCIResponse (..), GHCICommand (..), HLine (..), runCommandList, readGhciOutput, readGhciError, readFullResponse) where
 
 import Data.List (intercalate, nub)
 import System.Process (readProcess)
@@ -48,17 +48,13 @@ wrapCommandList ((id, cmd):cmds) = startCommand cmd : cmd : endCommand cmd : wra
       startCommand c = ECHO (intercalate "" ["{-S", show id, "-}"])
       endCommand c = ECHO (intercalate "" ["{-E", show id, "-}"])
 
-buildAL :: Int -> [GHCICommand] -> [(Int, GHCICommand)]
-buildAL _ []     = []
-buildAL n (c:cs) = (n, c) : buildAL (n + 1) cs
-
 runCommandList :: FilePath -> FilePath -> [GHCICommand] -> IO [GHCIResponse] 
 runCommandList ghci f cs = do
-  let al = buildAL 1 $ wrapStandardCommands f (nub cs)
+  let cs_temp = wrapStandardCommands f (nub cs)
+  let al = zip ([1 .. (length cs_temp)]) cs_temp
   let cmds = wrapCommandList al
   let ins = intercalate "\n" (map show cmds)
   bash <- getDataFileName "annotate.sh"
-  hPutStrLn stderr (show bash)
   out <- readProcess bash [ghci] ins
   let resp = splitResponses al out 
   hPutStrLn stderr (show resp)
@@ -129,5 +125,10 @@ readGhciError :: [HLine] -> String
 readGhciError [] = [] 
 readGhciError (Err s : ss) = s ++ "\n" ++ readGhciError ss  
 readGhciError (_ : ss) = readGhciError ss  
+
+readFullResponse :: [HLine] -> String
+readFullResponse [] = []
+readFullResponse (Err s : ss) = s ++ "\n" ++ readFullResponse ss  
+readFullResponse (Out s : ss) = s ++ "\n" ++ readFullResponse ss 
 
 

@@ -2,13 +2,13 @@ module Blackbox where
 
 -- External Imports
 import System.FilePath ((</>))
-import System.Directory (removeDirectoryRecursive, getPermissions, executable)
+import System.Directory (removeDirectoryRecursive, getPermissions, executable, doesFileExist)
 
 -- Project Imports
-import Mirage
 import FileUtils
 import TokenUtils (tokeniseFile, untokeniseFile)
 import Paths_blackbox (getDataFileName)
+import GHCIProc
 
 
 -- Project Functions
@@ -36,9 +36,9 @@ runBlackbox file mfile ghci = do
         --    Therfore we take a copy of the file, as tokens, before mirage 
         --    Does its stuff. Explain this in the report.
         tokens <- tokeniseFile mfile
-        -- 3) Ensure we can work with the file by runnign Mirage over it
-        mirageResp <- runMirage ghci infile
-        case mirageResp of 
+        -- 3) Ensure the file doesn't contain any errors
+        isComp <- isCompilable ghci infile
+        case isComp of 
             Left errors -> return (Left errors)
             Right _     -> do 
               -- 4) Do something interesting to the file
@@ -52,3 +52,20 @@ runBlackbox file mfile ghci = do
               removeDirectoryRecursive newdir
               return (Right (untokeniseFile postInsertScopes))
 
+
+isCompilable :: FilePath -> FilePath -> IO (Either String ())
+isCompilable ghci file = do 
+    let (dir, name) = splitPath file 
+    exists <- doesFileExist file
+    case exists of 
+        False -> return (mirageError name "Couldn't load file")
+        True  -> do 
+            response <- runCommandList ghci file [] 
+            case lookup (LOAD name) response of 
+                 Nothing -> return (mirageError name "Unknown Error")
+                 Just loadResp -> case readGhciError loadResp of 
+                        [] -> return (Right ())
+                        es -> return (mirageError name (readFullResponse loadResp))
+
+mirageError :: String -> String -> Either String ()
+mirageError name error = Left ("Couldn't load " ++ name ++ " into GHCI - " ++ error)

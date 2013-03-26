@@ -12,9 +12,9 @@ import Data.Char
 
 type Identifier = String
 type Layout = String
-type Paramater = (String, Maybe String)
+type Parameter = (String, Maybe String)
 
-type Type = (Identifier, Layout, [Paramater])
+type Type = (Identifier, Layout, [Parameter])
 
 type Data = (Type, [Type])
 
