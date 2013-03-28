@@ -55,3 +55,11 @@ test4 :: Either Int Int -> Int
 test4 (Left l) = 0
 test4 (Right r) = 0
 
+{-
+   Sometimes compiler warnings are sent over STDERR
+   We don't care so this tests that they are ignored when
+   testing if a file loaded
+-}
+testCompilerWarningIgnoring a = a
+testCompilerWarningIgnoring [] = []
+

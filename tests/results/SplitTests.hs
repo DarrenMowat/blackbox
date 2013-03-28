@@ -22,6 +22,9 @@ test0 :: Maybe Int -> Int
 test0 Nothing = 0
 test0 (Just x) = 0
 
+testx a = a
+testx [] = []
+
 {-
     Testing List - From internal type db
 
@@ -238,4 +241,11 @@ test16 :: Tree Int -> Int
 test16 (Branch (t) (t1)) = 0
 test16 (Leaf t) = 0
 
+{-
+   Sometimes compiler warnings are sent over STDERR
+   We don't care so this tests that they are ignored when
+   testing if a file loaded
+-}
+testCompilerWarningIgnoring a = a
+testCompilerWarningIgnoring [] = []
 

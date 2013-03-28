@@ -31,3 +31,11 @@ test2{-TYPELINE-} x = x
 
 test3{-TYPELINE-} Nothing = 0
 test3 (Just i) = i
+
+{-
+   Sometimes compiler warnings are sent over STDERR
+   We don't care so this tests that they are ignored when
+   testing if a file loaded
+-}
+testCompilerWarningIgnoring a = a
+testCompilerWarningIgnoring [] = []

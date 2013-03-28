@@ -10,12 +10,15 @@ import System.IO
 
 -- Project Imports
 import GHCIProc 
-import FileUtils (splitPath, findFile) 
+import FileUtils (splitPath) 
 import TokenUtils 
 import ListUtils 
 
 -- Either String String
 
+{-|
+  Find the type of a variable by inserting a tactical type error
+-}
 findTypeOfVarAtTok :: FilePath -> FilePath -> Tok -> ([[Tok]], [[Tok]], [[Tok]]) -> String -> IO (Maybe String)
 findTypeOfVarAtTok ghci file tok (str, fn, end) vname = do 
     case extractFunctionNameFromLine (head fn) of
@@ -39,6 +42,9 @@ findTypeOfVarAtTok ghci file tok (str, fn, end) vname = do
                       Nothing -> return Nothing
                       Just mType -> return (Just mType)
 
+{-|
+  Find the return type of a function by inserting a tactical type error
+-}
 findReturnTypeAtTok :: FilePath -> FilePath -> Tok -> ([[Tok]], [[Tok]], [[Tok]]) -> IO (Maybe String)
 findReturnTypeAtTok ghci file tok (str, fn, end) = do 
     case extractFunctionNameFromLine (head fn) of
@@ -67,7 +73,6 @@ findReturnTypeAtTok ghci file tok (str, fn, end) = do
   our type error onto the end of the file, deleting the existing right hand side
   of the binding if it exists
 -}
-
 insertTacticalTypeError :: Tok -> [Tok] -> [[Tok]] -> [[Tok]]
 insertTacticalTypeError tok er []     = []
 insertTacticalTypeError tok er (t:ts) = case elemToken tok t of 
@@ -172,6 +177,9 @@ getFunctionTypeFromGHCI ghci file name = do
 typeFoolerDataType :: [[Tok]]
 typeFoolerDataType = tokeniseString $ unlines dt
 
+{-|
+  Datatype used for type fooling
+-}
 dt :: [String]
 dt = [  ""
       , "{-# LANGUAGE ScopedTypeVariables #-}"

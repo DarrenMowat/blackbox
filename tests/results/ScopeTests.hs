@@ -116,3 +116,11 @@ test9 s is = (t9inner1 is == length s, t9inner2 is == length s)
       t9inner1 (s1:ss) = 1 + t9inner1 ss
       t9inner2 xs = {- In Scope [ s :: String, is :: [Int], t9inner1 :: [t0] -> a0, length :: [a0] -> Int, t9inner2 :: t0 -> a0, xs :: [Int], Return Type :: Int ] -}length xs
 
+{-
+   Sometimes compiler warnings are sent over STDERR
+   We don't care so this tests that they are ignored when
+   testing if a file loaded
+-}
+testCompilerWarningIgnoring a = a
+testCompilerWarningIgnoring [] = []
+

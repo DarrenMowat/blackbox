@@ -11,20 +11,6 @@ import System.IO
 -- Project Imports
 import Blackbox
 
-{- 
-  This file parses the arguments passed to the executable
-  and passes control over to the blackbox module if the user
-  has supplied valid arguments
-  Else it will die.
-
-  TODO: Print usage on incorerect paramaters
-
-  Some code from http://leiffrenzel.de/papers/commandline-options-in-haskell.html
-  Heavily modified though
--}
-
-
--- |The 'main' entry point to the appliction, requires some command line arguments
 main = do
   args <- getArgs
   case getOpt RequireOrder options args of

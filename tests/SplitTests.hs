@@ -21,6 +21,9 @@ main = putStrLn "SplitTests compiled"
 test0 :: Maybe Int -> Int
 test0 {-SPLIT-}xs = 0
 
+testx a = a
+testx [] = []
+
 {-
     Testing List - From internal type db
 
@@ -169,3 +172,10 @@ test15 {-SPLIT-}c = ""
 test16 :: Tree Int -> Int 
 test16 {-SPLIT-}t = 0
 
+{-
+   Sometimes compiler warnings are sent over STDERR
+   We don't care so this tests that they are ignored when
+   testing if a file loaded
+-}
+testCompilerWarningIgnoring a = a
+testCompilerWarningIgnoring [] = []

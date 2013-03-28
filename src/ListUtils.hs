@@ -4,7 +4,7 @@ import Language.Haskell.Her.HaLay
 import Data.Char(isSpace)
 
 {-|
-  Fucntion to trim anything that satifsfys the passed in fucntions from the start and
+  Function to trim anything that satisfys the passed in fucntions from the start and
   end of the list. 
 
   Made generic from https://code.google.com/p/haskellnotebook/wiki/HaskellTrimString

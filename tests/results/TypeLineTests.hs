@@ -36,3 +36,11 @@ test3 :: Num a => Maybe a -> a
 test3 Nothing = 0
 test3 (Just i) = i
 
+{-
+   Sometimes compiler warnings are sent over STDERR
+   We don't care so this tests that they are ignored when
+   testing if a file loaded
+-}
+testCompilerWarningIgnoring a = a
+testCompilerWarningIgnoring [] = []
+

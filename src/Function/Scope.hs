@@ -26,6 +26,10 @@ mapScope ghci file (t:ts) tokens = do
     tokens <- insertScope ghci file t tokens
     mapScope ghci file ts tokens
 
+{-|
+  Insert a comment into the token stream which tells the user everything in scope and their types
+  Things in scope are worked out below and the TypeFooler module is used to get their types  
+-}
 insertScope :: FilePath -> FilePath -> [Tok] -> [[Tok]] -> IO [[Tok]]
 insertScope ghci file line tokens = do 
     let (filePath, fileName) = splitPath file
@@ -42,13 +46,19 @@ insertScope ghci file line tokens = do
         let fnmapped = replaceFirstTokenOcc scopeIdentifier mappingCom fn
         return (str ++ fnmapped ++ end)
 
-
+{-|
+  Pair up variables/function names with their type
+-}
 makeScopeComment :: [String] -> [Maybe String] -> [String]
 makeScopeComment [] [] = [] 
 makeScopeComment (n:ns) (Nothing : ts) = (n ++ " :: Unknown") : makeScopeComment ns ts
 makeScopeComment (n:ns) (Just t : ts)  = (n ++ " :: " ++ t) : makeScopeComment ns ts
 
-
+{-|
+   Return a string with everything in scope (variables & functions)
+   Things in scope are identified by looking for lowercase identifiers
+   in the token stream
+-}
 inScope :: Tok -> [[Tok]] -> [String]
 inScope tok []     = []
 inScope tok (t:ts) = case elemToken tok t of 
@@ -79,6 +89,11 @@ inScope tok (t:ts) = case elemToken tok t of
       takeLid ((Lid name) : ts) = name : takeLid ts
       takeLid (t:ts) = takeLid ts
 
+{-|
+   Return a string with everything inline function in scope
+   Things in scope are identified by looking for lowercase identifiers
+   in the token stream
+-}
 inLineFunctionNames :: [Tok] -> Maybe [String]
 inLineFunctionNames [] = Nothing
 inLineFunctionNames t = case getLWhere t of 

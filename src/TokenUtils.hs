@@ -1,14 +1,23 @@
 module TokenUtils where 
 
 import Language.Haskell.Her.HaLay
-import Debug.Trace
 
+{-|
+    Convert a file into Her-Lexer tokens 
+
+    This also adds some stuff into the file to 
+    1) Preserver vertical spacing (append space on each line)
+    2) Dummy variable at the very end of the file to preserver EOF
+-}
 tokeniseFile :: FilePath -> IO [[Tok]]
 tokeniseFile file = do 
   contents <- readFile file
   let processed = unlines $ map appendSpc $ lines contents ++ ["blackboxEOFKeeper = 0"]
   return $ ready ".hers" processed
 
+{-|
+    Convert a string into Her-Lexer tokens 
+-}
 tokeniseString :: String -> [[Tok]] 
 tokeniseString = ready ".hers"
 
@@ -20,6 +29,11 @@ unappendSpc [] = []
 unappendSpc (' ' : []) = []
 unappendSpc (s:ss) = s : unappendSpc ss
 
+{-|
+    Convert a token stream to a string
+
+    This also removes the stuff that was added in tokeniseFile
+-}
 untokeniseFile :: [[Tok]] -> String 
 untokeniseFile toks = unlines $ init $ map unappendSpc (lines (tokssOut toks))
 
@@ -29,6 +43,10 @@ untokeniseArr = tokssOut
 untokeniseLine :: [Tok] -> String
 untokeniseLine = toksOut
 
+{-|
+    Utility to replace the first instance of a token with an error
+    Then piece the file back together
+-}
 errOut :: String -> Tok -> ([[Tok]], [[Tok]], [[Tok]]) -> IO [[Tok]] 
 errOut s t (str, fn, end) = return (str ++ replaceFirstTokenOcc t (mkComment s) fn ++ end)
     where 
@@ -70,6 +88,9 @@ extractFunction name tokens = (bf tokens, fn tokens, af tokens)
         af xs  = dropWhile fnt (dropWhile bft xs)
         n = Lid name 	
 
+{-|
+    Delete the first occurence of a token in a file
+-}
 deleteFirstTokenOcc :: Tok -> [[Tok]] -> [[Tok]]
 deleteFirstTokenOcc tok []     = []
 deleteFirstTokenOcc tok (t:ts) = if elemToken tok t then delCom t : ts else
@@ -87,6 +108,9 @@ deleteFirstTokenOcc tok (t:ts) = if elemToken tok t then delCom t : ts else
         T t rs : delCom ts
       delCom (t : ts) = if t == tok then ts else t : delCom ts
 
+{-|
+    Replace the first occurence of a token in a file
+-}
 replaceFirstTokenOcc :: Tok -> Tok -> [[Tok]] -> [[Tok]]
 replaceFirstTokenOcc tok rep []     = []
 replaceFirstTokenOcc tok rep (t:ts) = if elemToken tok t then delCom t : ts else
@@ -114,19 +138,22 @@ findLinesWithToken t (x : xs) = if elemToken t x then x : findLinesWithToken t x
     findLinesWithToken t xs
 
 {-|
-  
+  Test if a token is in a [[Tok]]
 -}
 elemTokenArr :: Tok -> [[Tok]] -> Bool
 elemTokenArr tok []     = False
 elemTokenArr tok (x:xs) = elemToken tok x || elemTokenArr tok xs  
 
+{-|
+  Return the [Tok] inside a 
+-}
 peek :: [Tok] -> [Tok]
 peek (T Ty ts : _) = ts
 peek (_: ts) = peek ts
 peek [] = []
 
 {-|
-  
+  Test is a token is in a [Tok]
 -}
 elemToken :: Tok -> [Tok] -> Bool
 elemToken _ []                  = False

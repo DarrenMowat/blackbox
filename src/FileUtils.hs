@@ -1,4 +1,4 @@
-module FileUtils (copyDirRecursive, splitPath, copyToNewTempDir, findFile) where
+module FileUtils (copyDirRecursive, splitPath, copyToNewTempDir) where
 
 import Control.Monad (forM, filterM)
 import System.Directory (doesDirectoryExist, getDirectoryContents, createDirectoryIfMissing, copyFile, getTemporaryDirectory, doesFileExist)
@@ -7,6 +7,9 @@ import Data.List (intercalate)
 import Data.List.Split (splitOn)
 import Control.Monad.Random (evalRandIO, getRandomR, RandomGen, Rand)
 
+-- Return the contents of the directory
+-- The contents are returned in the format [(dir_path, filename)]
+-- For example /dir/foo/file -> [("/dir/foo/", "file")]
 getDirContents :: FilePath -> IO [(FilePath, String)]
 getDirContents topdir = do
   names <- getDirectoryContents topdir
@@ -15,9 +18,11 @@ getDirContents topdir = do
     return [(topdir, name)]
   return (concat paths)
 
-isHaskellFile :: FilePath -> Bool
-isHaskellFile f = (takeExtension f) == ".hs" 
 
+{-|
+    Copy all the haskell files in a directory to the other directory
+    Recursively searches and creates other directorys
+-}
 copyDirRecursive :: FilePath -> FilePath -> IO ()
 copyDirRecursive src dst = do
   createDirectoryIfMissing True dst
@@ -35,6 +40,10 @@ copyDirRecursive src dst = do
         else return ()
   return ()
 
+{-|
+    Copy all the HS files in a directory to a
+    randomly generated temp directory 
+-}
 copyToNewTempDir :: FilePath -> IO FilePath
 copyToNewTempDir src = do 
     temp <- getTemporaryDirectory
@@ -45,6 +54,10 @@ copyToNewTempDir src = do
     copyDirRecursive src dest
     return dest
 
+-- Random int generator used for making random directorys
+randInt :: (RandomGen g) => Rand g Int
+randInt = getRandomR (1,9999999)
+
 -- Function to take a file path and split it into the directory path & the file name
 -- splitPath "/Users/darren/project/sample/F1.hs" = ("/Users/darren/project/sample/", "F1.hs")
 splitPath :: String -> (String, String)
@@ -52,27 +65,6 @@ splitPath path = (filePath, fileName)
           where parts = splitOn "/" path
                 filePath = intercalate "/" (init parts)
                 fileName = last parts
-            
-randInt :: (RandomGen g) => Rand g Int
-randInt = getRandomR (1,9999999)
-
-
-getNestedDirs :: FilePath -> IO [FilePath]
-getNestedDirs dir = do 
-  names <- getDirectoryContents dir
-  let properNames = filter (`notElem` [".", ".."]) names
-  paths <- forM properNames $ \name -> return [dir </> name]
-  let names = concat paths
-  filterM doesDirectoryExist names
-
-findFile :: FilePath -> String -> IO (Maybe FilePath)
-findFile dir name = do 
-    exists <- doesFileExist (dir </> name)
-    if exists then return (Just (dir </> name)) else return Nothing
-
-
-
-
 
 
 

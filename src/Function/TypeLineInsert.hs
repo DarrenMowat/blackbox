@@ -22,6 +22,9 @@ mapInsert ghci file (t:ts) tokens = do
     tokens <- insertType ghci file t tokens
     mapInsert ghci file ts tokens
 
+{-|
+  Insert a functions Type Signature at the start of a function if its missing
+-}
 insertType :: FilePath -> FilePath -> [Tok] -> [[Tok]] -> IO [[Tok]]
 insertType ghci file line tokens = do 
     let (filePath, fileName) = splitPath file

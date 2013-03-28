@@ -14,16 +14,13 @@ import System.IO
 
 -- Project Imports
 import GHCIProc 
-import FileUtils (splitPath, findFile) 
+import FileUtils (splitPath) 
 import TokenUtils 
 import ListUtils 
 import Type
 import Function.TypeFooler
 import Function.Scope
 
--- Horrid random name generator, we have support for functions with a huge number of paramaters though... :P 
-names :: [String]
-names = filter (not . null) (subsequences ['a'..'z'])
 
 splitIdentifier :: Tok
 splitIdentifier = Com "{-SPLIT-}"
@@ -37,8 +34,9 @@ mapSplit ghci file (t:ts) tokens = do
     tokens <- splitIt ghci file t tokens
     mapSplit ghci file (findLinesWithToken splitIdentifier tokens) tokens
 
-
-
+{-|
+  This function splits a pattern varibles in a fucntion into all of its constructors 
+-}
 splitIt :: FilePath -> FilePath -> [Tok] -> [[Tok]] -> IO [[Tok]]
 splitIt ghci file line tokens = do 
     let (filePath, fileName) = splitPath file
@@ -95,7 +93,6 @@ bindPatterns (t:ts) ns = case elemToken splitIdentifier t of
       seekL (t:ts) = t : seekL ts
       insert ts = map (generateLine (concat ts)) ns
 
-
 generateLine :: [Tok] -> String -> [Tok]
 generateLine line pat = fSplit line
     where
@@ -122,11 +119,13 @@ stringifyPattern vn scope (iden, lay, ps) = brackets (layout lay (genSensibleNam
       brackets ('[':bs) = '[' : bs
       brackets (' ':bs) = brackets bs
       brackets bs = "(" ++ bs ++ ")"
-      mknames = take (length ps) names
       layout [] _ = []
       layout ('{': '?' : '}' : ls) (n:ns) = n ++ (layout ls ns)
       layout (l:ls) ns = [l] ++ (layout ls ns)
 
+{-|
+  
+-}
 genSensibleNames :: String -> [String] -> [Parameter] -> [String]
 genSensibleNames vname _ [] = [] 
 genSensibleNames vname scope ((st, Nothing) : ps) = mkName : genSensibleNames vname (mkName : scope) ps
@@ -137,6 +136,7 @@ genSensibleNames vname scope ((_, Just str) : ps)  = mkName : genSensibleNames v
   where 
     mkName = if elem str scope then modName 1 else str
     modName i = if elem (str ++ (show i)) scope then modName (i+1) else (str ++ (show i))
+    
 {-|
   getVariableNameToSplit will traverse the tokens and find the name of
   the variable after {-SPLIT-}
@@ -163,8 +163,6 @@ getVariableNameToSplit (l:ls) = case elemToken splitIdentifier l of
       gName ((Lid name) : ts) = Just name
       gName (t : ts) = gName ts
 
-
-{- Code to grab a constructor -}
 
 getConstructor :: FilePath -> Type -> [[Tok]] -> FilePath -> IO (Maybe Data)
 getConstructor ghci (name, layout, params) tokens file = do 
