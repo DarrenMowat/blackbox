@@ -110,6 +110,9 @@ generateLine line pat = fSplit line
       fSplit ((Com "{-SPLIT-}") : ts) = insert ts
       fSplit (t:ts) = t : fSplit ts
 
+{-|
+  Take a pattern and insert variable names into it
+-}
 stringifyPattern :: String -> [String] -> Type -> String
 stringifyPattern vn scope (iden, lay, []) = iden
 stringifyPattern vn scope (iden, lay, ps) = brackets (layout lay (genSensibleNames vn (filter (/=vn) scope) ps))
@@ -124,7 +127,7 @@ stringifyPattern vn scope (iden, lay, ps) = brackets (layout lay (genSensibleNam
       layout (l:ls) ns = [l] ++ (layout ls ns)
 
 {-|
-  
+  Create a name for variables. This is either the default name or a randomly generated name 
 -}
 genSensibleNames :: String -> [String] -> [Parameter] -> [String]
 genSensibleNames vname _ [] = [] 
